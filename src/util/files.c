@@ -33,6 +33,23 @@
 #include <sys/wait.h>
 #include <limits.h> // PATH_MAX
 
+#ifdef HAVE_MEMFD
+#    include <sys/syscall.h> // syscall, SYS_memfd_create
+#endif
+#ifdef HAVE_SHM_ANON
+#    include <sys/mman.h> // shm_open, SHM_ANON
+#endif
+
+
+int create_anonymous_file() {
+#ifdef HAVE_MEMFD
+    return syscall(SYS_memfd_create, "buffer", 0);
+#endif
+#ifdef HAVE_SHM_ANON
+    return shm_open(SHM_ANON, O_RDWR | O_CREAT, 0600);
+#endif
+    return fileno(tmpfile());
+}
 
 void trim_trailing_newline(const char *file_path) {
     int fd = open(file_path, O_RDWR);

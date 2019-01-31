@@ -16,21 +16,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UTIL_FILES_H
-#define UTIL_FILES_H
+#ifndef SELECTION_PROTOCOLS_H
+#define SELECTION_PROTOCOLS_H
 
-int create_anonymous_file(void);
+#include "config.h"
 
-void trim_trailing_newline(const char *file_path);
+#include <wayland-client.h>
 
-// these functions return owned strings, so make sure
-// to free() their return values when done with them
+#ifdef HAVE_WP_PRIMARY_SELECTION
+#    include "wp-primary-selection.h"
+#endif
 
-char *path_for_fd(int fd);
-char *infer_mime_type_from_contents(const char *file_path);
-char *infer_mime_type_from_name(const char *file_path);
+#ifdef HAVE_GTK_PRIMARY_SELECTION
+#    include "gtk-primary-selection.h"
+#endif
 
-// returns the name of a new file
-char *dump_stdin_into_a_temp_file(void);
+#ifdef HAVE_WLR_DATA_CONTROL
+#    include "wlr-data-control.h"
+#endif
 
-#endif /* UTIL_FILES_H */
+#endif /* SELECTION_PROTOCOLS_H */

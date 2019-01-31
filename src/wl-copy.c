@@ -18,11 +18,13 @@
 
 #include "boilerplate.h"
 
-char * const *data_to_copy = NULL;
+#include "types/source.h"
+
+const char * const *data_to_copy = NULL;
 char *temp_file_to_copy = NULL;
 int paste_once = 0;
 
-void do_cancel() {
+static void cancelled_callback(struct source *source) {
     // we're done!
     if (temp_file_to_copy != NULL) {
         execlp("rm", "rm", "-r", dirname(temp_file_to_copy), NULL);
@@ -33,76 +35,16 @@ void do_cancel() {
     }
 }
 
-void do_send(const char *mime_type, int fd) {
-    // unset O_NONBLOCK
-    fcntl(fd, F_SETFL, 0);
-    if (data_to_copy != NULL) {
-        // copy the specified data, separated by spaces
-        FILE *f = fdopen(fd, "w");
-        if (f == NULL) {
-            perror("fdopen");
-            exit(1);
-        }
-        char * const *dataptr = data_to_copy;
-        for (int is_first = 1; *dataptr != NULL; dataptr++, is_first = 0) {
-            if (!is_first) {
-                fwrite(" ", 1, 1, f);
-            }
-            fwrite(*dataptr, 1, strlen(*dataptr), f);
-        }
-        fclose(f);
-    } else {
-        // copy from the temp file; for that, we delegate to a
-        // (hopefully) highly optimized implementation of copying
-        if (fork() == 0) {
-            dup2(fd, STDOUT_FILENO);
-            execlp("cat", "cat", temp_file_to_copy, NULL);
-            perror("exec cat");
-            exit(1);
-        }
-        close(fd);
-        wait(NULL);
-    }
-
+static void pasted_callback(struct source *source) {
     if (paste_once) {
-        do_cancel();
+        cancelled_callback(source);
     }
 }
 
-void data_source_target_handler
-(
-    void *data,
-    struct wl_data_source *data_source,
-    const char *mime_type
-) {}
-
-void data_source_send_handler
-(
-    void *data,
-    struct wl_data_source *data_source,
-    const char *mime_type,
-    int fd
-) {
-    do_send(mime_type, fd);
-}
-
-void data_source_cancelled_handler
-(
-    void *data,
-    struct wl_data_source *data_source
-) {
-    do_cancel();
-}
-
-const struct wl_data_source_listener data_source_listener = {
-    .target = data_source_target_handler,
-    .send = data_source_send_handler,
-    .cancelled = data_source_cancelled_handler
-};
-
-struct wl_data_source *data_source;
+static struct source source;
 
 void set_data_selection(uint32_t serial) {
+    struct wl_data_source *data_source = (struct wl_data_source *) source.proxy;
     wl_data_device_set_selection(data_device, data_source, serial);
     wl_display_roundtrip(display);
     destroy_popup_surface();
@@ -119,33 +61,10 @@ void complain_about_missing_keyboard() {
 
 #ifdef HAVE_GTK_PRIMARY_SELECTION
 
-void gtk_primary_selection_source_send_handler
-(
-    void *data,
-    struct gtk_primary_selection_source *gtk_primary_selection_source,
-    const char *mime_type,
-    int fd
-) {
-    do_send(mime_type, fd);
-}
-
-void gtk_primary_selection_source_cancelled_handler
-(
-    void *data,
-    struct gtk_primary_selection_source *gtk_primary_selection_source
-) {
-    do_cancel();
-}
-
-const struct gtk_primary_selection_source_listener
-gtk_primary_selection_source_listener = {
-    .send = gtk_primary_selection_source_send_handler,
-    .cancelled = gtk_primary_selection_source_cancelled_handler
-};
-
-struct gtk_primary_selection_source *gtk_primary_selection_source;
-
 void set_gtk_primary_selection(uint32_t serial) {
+
+    struct gtk_primary_selection_source *gtk_primary_selection_source =
+        (struct gtk_primary_selection_source *) source.proxy;
 
     gtk_primary_selection_device_set_selection(
         gtk_primary_selection_device,
@@ -161,33 +80,10 @@ void set_gtk_primary_selection(uint32_t serial) {
 
 #ifdef HAVE_WP_PRIMARY_SELECTION
 
-void primary_selection_source_send_handler
-(
-    void *data,
-    struct zwp_primary_selection_source_v1 *primary_selection_source,
-    const char *mime_type,
-    int fd
-) {
-    do_send(mime_type, fd);
-}
-
-void primary_selection_source_cancelled_handler
-(
-    void *data,
-    struct zwp_primary_selection_source_v1 *primary_selection_source
-) {
-    do_cancel();
-}
-
-const struct zwp_primary_selection_source_v1_listener
-primary_selection_source_listener = {
-    .send = primary_selection_source_send_handler,
-    .cancelled = primary_selection_source_cancelled_handler
-};
-
-struct zwp_primary_selection_source_v1 *primary_selection_source;
-
 void set_primary_selection(uint32_t serial) {
+
+    struct zwp_primary_selection_source_v1 *primary_selection_source =
+        (struct gtk_primary_selection_source *) source.proxy;
 
     zwp_primary_selection_device_v1_set_selection(
         primary_selection_device,
@@ -203,78 +99,28 @@ void set_primary_selection(uint32_t serial) {
 
 #ifdef HAVE_WLR_DATA_CONTROL
 
-void data_control_source_send_handler
-(
-    void *data,
-    struct zwlr_data_control_source_v1 *data_control_source,
-    const char *mime_type,
-    int fd
-) {
-    do_send(mime_type, fd);
-}
-
-void data_control_source_cancelled_handler
-(
-    void *data,
-    struct zwlr_data_control_source_v1 *data_source
-) {
-    do_cancel();
-}
-
-const struct zwlr_data_control_source_v1_listener
-data_control_source_listener = {
-    .send = data_control_source_send_handler,
-    .cancelled = data_control_source_cancelled_handler
-};
-#endif
-
-void do_offer
-(
-    char *mime_type,
-    void *source,
-    void (*offer_f)(void *source, const char *type)
-) {
-    if (mime_type == NULL || mime_type_is_text(mime_type)) {
-        // offer a few generic plain text formats
-        offer_f(source, text_plain);
-        offer_f(source, text_plain_utf8);
-        offer_f(source, "TEXT");
-        offer_f(source, "STRING");
-        offer_f(source, "UTF8_STRING");
-    }
-    if (mime_type != NULL) {
-        offer_f(source, mime_type);
-    }
-    free(mime_type);
-}
-
-#ifdef HAVE_WLR_DATA_CONTROL
-
-struct zwlr_data_control_source_v1 *
-create_data_control_source(char *mime_type) {
+void create_data_control_source(char *mime_type) {
     struct zwlr_data_control_source_v1 *data_control_source =
         zwlr_data_control_manager_v1_create_data_source(data_control_manager);
-    zwlr_data_control_source_v1_add_listener(
-        data_control_source,
-        &data_control_source_listener,
-        NULL
-    );
 
-    do_offer(
-        mime_type,
-        data_control_source,
-        (void (*)(void *, const char *)) zwlr_data_control_source_v1_offer
-    );
-    return data_control_source;
+    source.proxy = (struct wl_proxy *) data_control_source;
+    init_zwlr_data_control_source_v1(&source);
+    source_offer(&source, mime_type);
 }
 
 #endif
 
 void init_selection(char *mime_type) {
+    source.pasted_callback = pasted_callback;
+    source.cancelled_callback = cancelled_callback;
+    source.data_to_copy = data_to_copy;
+    source.temp_file_to_copy = temp_file_to_copy;
+
     if (data_control_version) {
 #ifdef HAVE_WLR_DATA_CONTROL
+        create_data_control_source(mime_type);
         struct zwlr_data_control_source_v1 *data_control_source =
-            create_data_control_source(mime_type);
+            (struct zwlr_data_control_source_v1 *) source.proxy;
 
         zwlr_data_control_device_v1_set_selection(
             data_control_device,
@@ -282,16 +128,13 @@ void init_selection(char *mime_type) {
         );
 #endif
     } else {
-        data_source = wl_data_device_manager_create_data_source(
-            data_device_manager
-        );
-        wl_data_source_add_listener(data_source, &data_source_listener, NULL);
-
-        do_offer(
-            mime_type,
-            data_source,
-            (void (*)(void *, const char *)) wl_data_source_offer
-        );
+        struct wl_data_source *data_source =
+            wl_data_device_manager_create_data_source(
+                data_device_manager
+            );
+        source.proxy = (struct wl_proxy *) data_source;
+        init_wl_data_source(&source);
+        source_offer(&source, mime_type);
 
         action_on_popup_surface_getting_focus = set_data_selection;
         action_on_no_keyboard = try_setting_data_selection_directly;
@@ -302,10 +145,16 @@ void init_selection(char *mime_type) {
 void init_primary_selection(char *mime_type) {
     ensure_has_primary_selection();
 
+    source.pasted_callback = pasted_callback;
+    source.cancelled_callback = cancelled_callback;
+    source.data_to_copy = data_to_copy;
+    source.temp_file_to_copy = temp_file_to_copy;
+
 #ifdef HAVE_WLR_DATA_CONTROL
     if (data_control_supports_primary_selection) {
+        create_data_control_source(mime_type);
         struct zwlr_data_control_source_v1 *data_control_source =
-            create_data_control_source(mime_type);
+            (struct zwlr_data_control_source_v1 *) source.proxy;
 
         zwlr_data_control_device_v1_set_primary_selection(
             data_control_device,
@@ -317,22 +166,13 @@ void init_primary_selection(char *mime_type) {
 
 #ifdef HAVE_WP_PRIMARY_SELECTION
     if (primary_selection_device_manager != NULL) {
-        primary_selection_source =
+        struct zwp_primary_selection_source_v1 *primary_selection_source =
             zwp_primary_selection_device_manager_v1_create_source(
                 primary_selection_device_manager
             );
-        zwp_primary_selection_source_v1_add_listener(
-            primary_selection_source,
-            &primary_selection_source_listener,
-            NULL
-        );
-
-        do_offer(
-            mime_type,
-            primary_selection_source,
-            (void (*)(void *, const char *))
-                 zwp_primary_selection_source_v1_offer
-        );
+        source.proxy = (struct wl_proxy *) primary_selection_source;
+        init_zwp_primary_selection_source_v1(&source);
+        source_offer(&source, mime_type);
 
         action_on_popup_surface_getting_focus = set_primary_selection;
         action_on_no_keyboard = complain_about_missing_keyboard;
@@ -343,21 +183,13 @@ void init_primary_selection(char *mime_type) {
 
 #ifdef HAVE_GTK_PRIMARY_SELECTION
     if (gtk_primary_selection_device_manager != NULL) {
-        gtk_primary_selection_source =
+        struct gtk_primary_selection_source *gtk_primary_selection_source =
             gtk_primary_selection_device_manager_create_source(
                 gtk_primary_selection_device_manager
             );
-        gtk_primary_selection_source_add_listener(
-            gtk_primary_selection_source,
-            &gtk_primary_selection_source_listener,
-            NULL
-        );
-
-        do_offer(
-            mime_type,
-            gtk_primary_selection_source,
-            (void (*)(void *, const char *)) gtk_primary_selection_source_offer
-        );
+        source.proxy = (struct wl_proxy *) gtk_primary_selection_source;
+        init_gtk_primary_selection_source(&source);
+        source_offer(&source, mime_type);
 
         action_on_popup_surface_getting_focus = set_gtk_primary_selection;
         action_on_no_keyboard = complain_about_missing_keyboard;
@@ -472,7 +304,7 @@ int main(int argc, char * const argv[]) {
     if (!clear) {
         if (optind < argc) {
             // copy our command-line args
-            data_to_copy = &argv[optind];
+            data_to_copy = (const char * const *) &argv[optind];
         } else {
             // copy stdin
             temp_file_to_copy = dump_stdin_into_a_temp_file();

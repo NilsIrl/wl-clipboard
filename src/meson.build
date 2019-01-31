@@ -102,7 +102,9 @@ boilerplate = static_library(
         'util/files.h',
         'util/files.c',
         'util/misc.h',
-        'util/misc.c'
+        'util/misc.c',
+        'types/source.h',
+        'types/source.c'
     ],
     dependencies: wayland,
     link_with: protocol_deps

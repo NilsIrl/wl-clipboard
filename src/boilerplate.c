@@ -496,16 +496,6 @@ void ensure_has_primary_selection() {
 #endif
 }
 
-int create_anonymous_file() {
-#ifdef HAVE_MEMFD
-    return syscall(SYS_memfd_create, "buffer", 0);
-#endif
-#ifdef HAVE_SHM_ANON
-    return shm_open(SHM_ANON, O_RDWR | O_CREAT, 0600);
-#endif
-    return fileno(tmpfile());
-}
-
 void popup_tiny_invisible_surface() {
     // HACK:
     // pop up a tiny invisible surface to get the keyboard focus,
