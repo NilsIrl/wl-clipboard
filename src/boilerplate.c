@@ -650,31 +650,6 @@ uint32_t get_serial() {
     return global_serial;
 }
 
-int mime_type_is_text(const char *mime_type) {
-    return str_has_prefix(mime_type, "text/")
-        || strcmp(mime_type, "TEXT") == 0
-        || strcmp(mime_type, "STRING") == 0
-        || strcmp(mime_type, "UTF8_STRING") == 0
-        || str_has_suffix(mime_type, "script")
-        || str_has_suffix(mime_type, "xml")
-        || strstr(mime_type, "json") != NULL;
-}
-
-int str_has_prefix(const char *string, const char *prefix) {
-    size_t prefix_length = strlen(prefix);
-    return strncmp(string, prefix, prefix_length) == 0;
-}
-
-int str_has_suffix(const char *string, const char *suffix) {
-    size_t string_length = strlen(string);
-    size_t suffix_length = strlen(suffix);
-    if (string_length < suffix_length) {
-        return 0;
-    }
-    size_t offset = string_length - suffix_length;
-    return strcmp(string + offset, suffix) == 0;
-}
-
 void print_version_info() {
     printf(
         "wl-clipboard " PROJECT_VERSION "\n"

@@ -95,7 +95,11 @@ endforeach
 
 boilerplate = static_library(
     'wl-clipboard-boilerplate',
-    'boilerplate.c',
+    [
+        'boilerplate.c',
+        'util/string.h',
+        'util/string.c'
+    ],
     dependencies: wayland,
     link_with: protocol_deps
 )
