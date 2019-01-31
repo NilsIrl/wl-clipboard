@@ -16,17 +16,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UTIL_STRING_H
-#define UTIL_STRING_H
+#ifndef UTIL_MISC_H
+#define UTIL_MISC_H
 
-#define text_plain "text/plain"
-#define text_plain_utf8 "text/plain;charset=utf-8"
+#include "config.h"
+#include "util/misc.h"
 
-int mime_type_is_text(const char *mime_type);
+#include <stdio.h>
 
-int str_has_prefix(const char *string, const char *prefix);
-int str_has_suffix(const char *string, const char *suffix);
+void print_version_info() {
+    printf(
+        "wl-clipboard " PROJECT_VERSION "\n"
+        "Copyright (C) 2019 Sergey Bugaev\n"
+        "License GPLv3+: GNU GPL version 3 or later"
+        " <https://gnu.org/licenses/gpl.html>.\n"
+        "This is free software: you are free to change and redistribute it.\n"
+        "There is NO WARRANTY, to the extent permitted by law.\n"
+    );
+}
 
-const char *get_file_extension(const char *file_path);
-
-#endif /* UTIL_STRING_H */
+#endif /* UTIL_MISC_HUTIL_MISC_H */

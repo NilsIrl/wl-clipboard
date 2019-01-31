@@ -16,17 +16,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UTIL_STRING_H
-#define UTIL_STRING_H
+#ifndef UTIL_FILES_H
+#define UTIL_FILES_H
 
-#define text_plain "text/plain"
-#define text_plain_utf8 "text/plain;charset=utf-8"
+void trim_trailing_newline(const char *file_path);
 
-int mime_type_is_text(const char *mime_type);
+// these functions return owned strings, so make sure
+// to free() their return values when done with them
 
-int str_has_prefix(const char *string, const char *prefix);
-int str_has_suffix(const char *string, const char *suffix);
+char *path_for_fd(int fd);
+char *infer_mime_type_from_contents(const char *file_path);
+char *infer_mime_type_from_name(const char *file_path);
 
-const char *get_file_extension(const char *file_path);
+// returns the name of a new file
+char *dump_stdin_into_a_temp_file(void);
 
-#endif /* UTIL_STRING_H */
+#endif /* UTIL_FILES_H */

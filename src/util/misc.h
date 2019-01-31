@@ -16,17 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UTIL_STRING_H
-#define UTIL_STRING_H
+#ifndef UTIL_MISC_H
+#define UTIL_MISC_H
 
-#define text_plain "text/plain"
-#define text_plain_utf8 "text/plain;charset=utf-8"
+#define bail(message) do { fprintf(stderr, message "\n"); exit(1); } while (0)
 
-int mime_type_is_text(const char *mime_type);
+void print_version_info(void);
 
-int str_has_prefix(const char *string, const char *prefix);
-int str_has_suffix(const char *string, const char *suffix);
-
-const char *get_file_extension(const char *file_path);
-
-#endif /* UTIL_STRING_H */
+#endif /* UTIL_MISC_HUTIL_MISC_H */

@@ -19,6 +19,8 @@
 #include "config.h"
 
 #include "util/string.h"
+#include "util/files.h"
+#include "util/misc.h"
 
 #include <wayland-client.h>
 #include <stdio.h>
@@ -62,8 +64,6 @@
 #ifdef HAVE_WLR_DATA_CONTROL
 #    include "wlr-data-control.h"
 #endif
-
-#define bail(message) do { fprintf(stderr, message "\n"); exit(1); } while (0)
 
 struct wl_display *display;
 struct wl_data_device_manager *data_device_manager;
@@ -119,17 +119,3 @@ void (*action_on_no_keyboard)(void);
 void ensure_has_primary_selection(void);
 
 uint32_t get_serial(void);
-
-void print_version_info(void);
-
-void trim_trailing_newline(const char *file_path);
-
-// functions below this line return owned strings,
-// free() their return values when done with them
-
-char *path_for_fd(int fd);
-char *infer_mime_type_from_contents(const char *file_path);
-char *infer_mime_type_from_name(const char *file_path);
-
-// returns the name of a new file
-char *dump_stdin_into_a_temp_file(void);
