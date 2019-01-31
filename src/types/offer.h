@@ -21,36 +21,32 @@
 
 #include "selection-protocols.h"
 
-struct source {
-    /* These fields are filled in by whoever creates this source */
-    void (*pasted_callback)(struct source *self);
-    void (*cancelled_callback)(struct source *self);
-
-    const char * const *data_to_copy;
-    const char *temp_file_to_copy;
+struct offer {
+    /* These fields are filled in by whoever creates this offer */
+    void (*offered_type_callback)(const char *mime_type);
 
     struct wl_proxy *proxy;
 
     /* This field is initialized by the implementation */
-    void (*do_offer)(struct wl_proxy *proxy, const char *mime_type);
+    void (*do_receive)(struct wl_proxy *proxy, const char *mime_type, int fd);
 };
 
-void source_offer(struct source *self, char *mime_type);
+void offer_receive(struct offer *self, const char *mime_type, int fd);
 
 /* Initializers */
 
-void init_wl_data_source(struct source *self);
+void init_wl_data_offer(struct offer *self);
 
 #ifdef HAVE_GTK_PRIMARY_SELECTION
-void init_gtk_primary_selection_source(struct source *self);
+void init_gtk_primary_selection_offer(struct offer *self);
 #endif
 
 #ifdef HAVE_WP_PRIMARY_SELECTION
-void init_zwp_primary_selection_source_v1(struct source *self);
+void init_zwp_primary_selection_offer_v1(struct offer *self);
 #endif
 
 #ifdef HAVE_WLR_DATA_CONTROL
-void init_zwlr_data_control_source_v1(struct source *self);
+void init_zwlr_data_control_offer_v1(struct offer *self);
 #endif
 
-#endif /* TYPES_SOURCE_H */
+#endif /* TYPES_OFFER_H */

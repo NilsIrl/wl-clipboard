@@ -18,7 +18,9 @@
 
 #include "boilerplate.h"
 
-struct {
+#include "types/offer.h"
+
+static struct {
     char *explicit_type;
     char *inferred_type;
     int no_newline;
@@ -26,7 +28,7 @@ struct {
     int primary;
 } options;
 
-struct {
+static struct {
     int explicit_available;
     int inferred_available;
     int plain_text_utf8_available;
@@ -36,7 +38,7 @@ struct {
     char *any;
 } available_types;
 
-void do_process_offer(const char *offered_type) {
+static void offered_type_callback(const char *offered_type) {
     if (options.list_types) {
         printf("%s\n", offered_type);
     } else {
@@ -107,7 +109,7 @@ if (available_types.any_text != NULL) \
 if (available_types.any != NULL) \
     return available_types.any
 
-const char *mime_type_to_request() {
+static const char *mime_type_to_request() {
     if (options.explicit_type != NULL) {
         if (strcmp(options.explicit_type, "text") == 0) {
             try_text_plain_utf8;
@@ -148,7 +150,7 @@ const char *mime_type_to_request() {
 #undef try_any_text
 #undef try_any
 
-void free_types() {
+static void free_types() {
     free(available_types.having_explicit_as_prefix);
     free(available_types.any_text);
     free(available_types.any);
@@ -156,11 +158,7 @@ void free_types() {
     free(options.inferred_type);
 }
 
-void do_paste
-(
-    void *offer,
-    void (*receive_f)(void *offer, const char *mime_type, int fd)
-) {
+static void do_paste(struct offer *offer) {
     if (offer == NULL) {
         bail("No selection");
     }
@@ -178,7 +176,7 @@ void do_paste
     int pipefd[2];
     pipe(pipefd);
 
-    receive_f(offer, mime_type, pipefd[1]);
+    offer_receive(offer, mime_type, pipefd[1]);
 
     free_types();
     destroy_popup_surface();
@@ -202,18 +200,11 @@ void do_paste
     exit(0);
 }
 
-void data_offer_offer
-(
-    void *data,
-    struct wl_data_offer *data_offer,
-    const char *offered_mime_type
-) {
-    do_process_offer(offered_mime_type);
+struct offer *make_offer() {
+    struct offer *offer = malloc(sizeof(struct offer));
+    offer->offered_type_callback = offered_type_callback;
+    return offer;
 }
-
-const struct wl_data_offer_listener data_offer_listener = {
-    .offer = data_offer_offer
-};
 
 void data_device_data_offer
 (
@@ -221,7 +212,9 @@ void data_device_data_offer
     struct wl_data_device *data_device,
     struct wl_data_offer *data_offer
 ) {
-    wl_data_offer_add_listener(data_offer, &data_offer_listener, NULL);
+    struct offer *offer = make_offer();
+    offer->proxy = (struct wl_proxy *) data_offer;
+    init_wl_data_offer(offer);
 }
 
 void data_device_selection
@@ -230,10 +223,9 @@ void data_device_selection
     struct wl_data_device *data_device,
     struct wl_data_offer *data_offer
 ) {
-    do_paste(
-        data_offer,
-        (void (*)(void *, const char *, int)) wl_data_offer_receive
-    );
+    struct offer *offer =
+        wl_proxy_get_user_data((struct wl_proxy *) data_offer);
+    do_paste(offer);
 }
 
 const struct wl_data_device_listener data_device_listener = {
@@ -243,19 +235,6 @@ const struct wl_data_device_listener data_device_listener = {
 
 #ifdef HAVE_GTK_PRIMARY_SELECTION
 
-void gtk_primary_selection_offer_offer
-(
-    void *data,
-    struct gtk_primary_selection_offer *gtk_primary_selection_offer,
-    const char *offered_mime_type
-) {
-    do_process_offer(offered_mime_type);
-}
-
-const struct gtk_primary_selection_offer_listener
-gtk_primary_selection_offer_listener = {
-    .offer = gtk_primary_selection_offer_offer
-};
 
 void gtk_primary_selection_device_data_offer
 (
@@ -263,11 +242,9 @@ void gtk_primary_selection_device_data_offer
     struct gtk_primary_selection_device *gtk_primary_selection_device,
     struct gtk_primary_selection_offer *gtk_primary_selection_offer
 ) {
-    gtk_primary_selection_offer_add_listener(
-        gtk_primary_selection_offer,
-        &gtk_primary_selection_offer_listener,
-        NULL
-    );
+    struct offer *offer = make_offer();
+    offer->proxy = (struct wl_proxy *) gtk_primary_selection_offer;
+    init_gtk_primary_selection_offer(offer);
 }
 
 void gtk_primary_selection_device_selection
@@ -276,11 +253,9 @@ void gtk_primary_selection_device_selection
     struct gtk_primary_selection_device *gtk_primary_selection_device,
     struct gtk_primary_selection_offer *gtk_primary_selection_offer
 ) {
-    do_paste(
-        gtk_primary_selection_offer,
-        (void (*)(void *, const char *, int))
-              gtk_primary_selection_offer_receive
-    );
+    struct offer *offer =
+        wl_proxy_get_user_data((struct wl_proxy *) gtk_primary_selection_offer);
+    do_paste(offer);
 }
 
 const struct gtk_primary_selection_device_listener
@@ -293,31 +268,15 @@ gtk_primary_selection_device_listener = {
 
 #ifdef HAVE_WP_PRIMARY_SELECTION
 
-void primary_selection_offer_offer
-(
-    void *data,
-    struct zwp_primary_selection_offer_v1 *primary_selection_offer,
-    const char *offered_mime_type
-) {
-    do_process_offer(offered_mime_type);
-}
-
-const struct zwp_primary_selection_offer_v1_listener
-primary_selection_offer_listener = {
-    .offer = primary_selection_offer_offer
-};
-
 void primary_selection_device_data_offer
 (
     void *data,
     struct zwp_primary_selection_device_v1 *primary_selection_device,
     struct zwp_primary_selection_offer_v1 *primary_selection_offer
 ) {
-    zwp_primary_selection_offer_v1_add_listener(
-        primary_selection_offer,
-        &primary_selection_offer_listener,
-        NULL
-    );
+    struct offer *offer = make_offer();
+    offer->proxy = (struct wl_proxy *) primary_selection_offer;
+    init_zwp_primary_selection_offer_v1(offer);
 }
 
 void primary_selection_device_selection
@@ -326,11 +285,9 @@ void primary_selection_device_selection
     struct zwp_primary_selection_device_v1 *primary_selection_device,
     struct zwp_primary_selection_offer_v1 *primary_selection_offer
 ) {
-    do_paste(
-        primary_selection_offer,
-        (void (*)(void *, const char *, int))
-              zwp_primary_selection_offer_v1_receive
-    );
+    struct offer *offer =
+        wl_proxy_get_user_data((struct wl_proxy *) primary_selection_offer);
+    do_paste(offer);
 }
 
 const struct zwp_primary_selection_device_v1_listener
@@ -342,18 +299,6 @@ primary_selection_device_listener = {
 #endif
 
 #ifdef HAVE_WLR_DATA_CONTROL
-void data_control_offer_offer
-(
-    void *data,
-    struct zwlr_data_control_offer_v1 *data_offer,
-    const char *offered_mime_type
-) {
-    do_process_offer(offered_mime_type);
-}
-
-const struct zwlr_data_control_offer_v1_listener data_control_offer_listener = {
-    .offer = data_control_offer_offer
-};
 
 void data_control_device_data_offer
 (
@@ -361,11 +306,9 @@ void data_control_device_data_offer
     struct zwlr_data_control_device_v1 *data_control_device,
     struct zwlr_data_control_offer_v1 *data_control_offer
 ) {
-    zwlr_data_control_offer_v1_add_listener(
-        data_control_offer,
-        &data_control_offer_listener,
-        NULL
-    );
+    struct offer *offer = make_offer();
+    offer->proxy = (struct wl_proxy *) data_control_offer;
+    init_zwlr_data_control_offer_v1(offer);
 }
 
 void data_control_device_selection
@@ -377,10 +320,9 @@ void data_control_device_selection
     if (options.primary) {
         return;
     }
-    do_paste(
-        data_control_offer,
-        (void (*)(void *, const char *, int)) zwlr_data_control_offer_v1_receive
-    );
+    struct offer *offer =
+        wl_proxy_get_user_data((struct wl_proxy *) data_control_offer);
+    do_paste(offer);
 }
 
 void data_control_device_primary_selection
@@ -392,10 +334,9 @@ void data_control_device_primary_selection
     if (!options.primary) {
         return;
     }
-    do_paste(
-        data_control_offer,
-        (void (*)(void *, const char *, int)) zwlr_data_control_offer_v1_receive
-    );
+    struct offer *offer =
+        wl_proxy_get_user_data((struct wl_proxy *) data_control_offer);
+    do_paste(offer);
 }
 
 const struct zwlr_data_control_device_v1_listener

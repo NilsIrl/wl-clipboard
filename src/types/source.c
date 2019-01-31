@@ -87,7 +87,7 @@ void source_offer(struct source *self, char *mime_type) {
 static void type ## _send_handler \
 ( \
     void *data, \
-    struct type *data_source, \
+    struct type *proxy, \
     const char *mime_type, \
     int fd \
 ) { \
@@ -99,7 +99,7 @@ static void type ## _send_handler \
 static void type ## _cancelled_handler \
 ( \
     void *data, \
-    struct type *data_source \
+    struct type *proxy \
 ) { \
     struct source *self = data; \
     if (self->cancelled_callback != NULL) { \
