@@ -17,7 +17,7 @@
  */
 
 #include "types/offer.h"
-#include "selection-protocols.h"
+#include "includes/selection-protocols.h"
 
 
 void offer_receive(struct offer *self, const char *mime_type, int fd) {

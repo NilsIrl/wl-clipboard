@@ -17,7 +17,7 @@
  */
 
 #include "config.h"
-#include "selection-protocols.h"
+#include "includes/selection-protocols.h"
 #include "types/source.h"
 #include "util/string.h"
 

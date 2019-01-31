@@ -37,25 +37,8 @@
 #include <sys/wait.h>
 #include <limits.h> // PATH_MAX
 
-#ifdef HAVE_XDG_SHELL
-#    include "xdg-shell.h"
-#endif
-
-#ifdef HAVE_WP_PRIMARY_SELECTION
-#    include "wp-primary-selection.h"
-#endif
-
-#ifdef HAVE_WLR_LAYER_SHELL
-#    include "wlr-layer-shell.h"
-#endif
-
-#ifdef HAVE_GTK_PRIMARY_SELECTION
-#    include "gtk-primary-selection.h"
-#endif
-
-#ifdef HAVE_WLR_DATA_CONTROL
-#    include "wlr-data-control.h"
-#endif
+#include "includes/selection-protocols.h"
+#include "includes/shell-protocols.h"
 
 struct wl_display *display;
 struct wl_data_device_manager *data_device_manager;
@@ -64,17 +47,13 @@ struct wl_compositor *compositor;
 struct wl_shm *shm;
 struct wl_shell *shell;
 struct wl_surface *surface;
-struct wl_shell_surface *shell_surface;
 
 #ifdef HAVE_XDG_SHELL
 struct xdg_wm_base *xdg_wm_base;
-struct xdg_surface *xdg_surface;
-struct xdg_toplevel *xdg_toplevel;
 #endif
 
 #ifdef HAVE_WLR_LAYER_SHELL
 struct zwlr_layer_shell_v1 *layer_shell;
-struct zwlr_layer_surface_v1 *layer_surface;
 #endif
 
 struct wl_data_device *data_device;

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SELECTION_PROTOCOLS_H
-#define SELECTION_PROTOCOLS_H
+#ifndef INCLUDES_SELECTION_PROTOCOLS_H
+#define INCLUDES_SELECTION_PROTOCOLS_H
 
 #include "config.h"
 
@@ -35,4 +35,4 @@
 #    include "wlr-data-control.h"
 #endif
 
-#endif /* SELECTION_PROTOCOLS_H */
+#endif /* INCLUDES_SELECTION_PROTOCOLS_H */

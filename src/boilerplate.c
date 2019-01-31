@@ -18,6 +18,8 @@
 
 #include "boilerplate.h"
 
+#include "types/shell-surface.h"
+
 void registry_global_handler
 (
     void *data,
@@ -266,111 +268,6 @@ int ensure_seat_has_keyboard() {
 
 #undef UNSET_CAPABILITIES
 
-void shell_surface_ping
-(
-    void *data,
-    struct wl_shell_surface *shell_surface,
-    uint32_t serial
-) {
-    wl_shell_surface_pong(shell_surface, serial);
-}
-
-void shell_surface_configure
-(
-    void *data,
-    struct wl_shell_surface *shell_surface,
-    uint32_t edges,
-    int32_t width,
-    int32_t height
-) {}
-
-void shell_surface_popup_done
-(
-    void *data,
-    struct wl_shell_surface *shell_surface
-) {}
-
-const struct wl_shell_surface_listener shell_surface_listener = {
-    .ping = shell_surface_ping,
-    .configure = shell_surface_configure,
-    .popup_done = shell_surface_popup_done
-};
-
-#ifdef HAVE_XDG_SHELL
-
-void xdg_toplevel_configure_handler
-(
-    void *data,
-    struct xdg_toplevel *xdg_toplevel,
-    int32_t width,
-    int32_t height,
-    struct wl_array *states
-) {}
-
-void xdg_toplevel_close_handler
-(
-    void *data,
-    struct xdg_toplevel *xdg_toplevel
-) {}
-
-const struct xdg_toplevel_listener xdg_toplevel_listener = {
-    .configure = xdg_toplevel_configure_handler,
-    .close = xdg_toplevel_close_handler
-};
-
-void xdg_surface_configure_handler
-(
-    void *data,
-    struct xdg_surface *xdg_surface,
-    uint32_t serial
-) {
-    xdg_surface_ack_configure(xdg_surface, serial);
-}
-
-const struct xdg_surface_listener xdg_surface_listener = {
-    .configure = xdg_surface_configure_handler
-};
-
-void xdg_wm_base_ping_handler
-(
-    void *data,
-    struct xdg_wm_base *xdg_wm_base,
-    uint32_t serial
-) {
-    xdg_wm_base_pong(xdg_wm_base, serial);
-}
-
-const struct xdg_wm_base_listener xdg_wm_base_listener = {
-    .ping = xdg_wm_base_ping_handler
-};
-
-#endif
-
-#ifdef HAVE_WLR_LAYER_SHELL
-
-void layer_surface_configure_handler
-(
-    void *data,
-    struct zwlr_layer_surface_v1 *layer_surface,
-    uint32_t serial,
-    uint32_t width,
-    uint32_t height
-) {
-    zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
-}
-
-void layer_surface_closed_handler
-(
-    void *data,
-    struct zwlr_layer_surface_v1 *layer_surface
-) {}
-
-const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
-    .configure = layer_surface_configure_handler,
-    .closed = layer_surface_closed_handler
-};
-
-#endif
 
 #ifdef HAVE_WLR_DATA_CONTROL
 
@@ -385,6 +282,23 @@ void data_control_manager_primary_selection
 const struct zwlr_data_control_manager_v1_listener
 data_control_manager_listener = {
     .primary_selection = data_control_manager_primary_selection
+};
+
+#endif
+
+#ifdef HAVE_XDG_SHELL
+
+static void xdg_wm_base_ping_handler
+(
+    void *data,
+    struct xdg_wm_base *xdg_wm_base,
+    uint32_t serial
+) {
+    xdg_wm_base_pong(xdg_wm_base, serial);
+}
+
+static const struct xdg_wm_base_listener xdg_wm_base_listener = {
+    .ping = xdg_wm_base_ping_handler
 };
 
 #endif
@@ -496,6 +410,8 @@ void ensure_has_primary_selection() {
 #endif
 }
 
+static struct shell_surface shell_surface;
+
 void popup_tiny_invisible_surface() {
     // HACK:
     // pop up a tiny invisible surface to get the keyboard focus,
@@ -515,19 +431,17 @@ void popup_tiny_invisible_surface() {
 #ifdef HAVE_WLR_LAYER_SHELL
     if (layer_shell != NULL) {
         // use wlr-layer-shell
-        layer_surface = zwlr_layer_shell_v1_get_layer_surface(
-            layer_shell,
-            surface,
-            NULL,  // output
-            ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
-            "wl-clipboard"  // namespace
-        );
-        zwlr_layer_surface_v1_add_listener(
-            layer_surface,
-            &layer_surface_listener,
-            NULL
-        );
-        zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface, 1);
+        struct zwlr_layer_surface_v1 *layer_surface =
+            zwlr_layer_shell_v1_get_layer_surface(
+                layer_shell,
+                surface,
+                NULL,  // output
+                ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
+                "wl-clipboard"  // namespace
+            );
+        shell_surface.proxy = (struct wl_proxy *) layer_surface;
+        init_zwlr_layer_surface_v1(&shell_surface);
+
         // signal that the surface is ready to be configured
         wl_surface_commit(surface);
         // wait for the surface to be configured
@@ -536,18 +450,19 @@ void popup_tiny_invisible_surface() {
 #endif
     if (shell != NULL) {
         // use wl_shell
-        shell_surface = wl_shell_get_shell_surface(shell, surface);
-        wl_shell_surface_set_toplevel(shell_surface);
-        wl_shell_surface_set_title(shell_surface, "wl-clipboard");
+        struct wl_shell_surface *wl_shell_surface =
+            wl_shell_get_shell_surface(shell, surface);
+        shell_surface.proxy = (struct wl_proxy *) wl_shell_surface;
+        init_wl_shell_surface(&shell_surface);
     } else {
 #ifdef HAVE_XDG_SHELL
         // use xdg-shell
         xdg_wm_base_add_listener(xdg_wm_base, &xdg_wm_base_listener, NULL);
-        xdg_surface = xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
-        xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, NULL);
-        xdg_toplevel = xdg_surface_get_toplevel(xdg_surface);
-        xdg_toplevel_add_listener(xdg_toplevel, &xdg_toplevel_listener, NULL);
-        xdg_toplevel_set_title(xdg_toplevel, "wl-clipboard");
+        struct xdg_surface *xdg_surface =
+            xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
+        shell_surface.proxy = (struct wl_proxy *) xdg_surface;
+        init_xdg_surface(&shell_surface);
+
         // signal that the surface is ready to be configured
         wl_surface_commit(surface);
         // wait for the surface to be configured
@@ -588,26 +503,8 @@ void popup_tiny_invisible_surface() {
 }
 
 void destroy_popup_surface() {
-#ifdef HAVE_WLR_LAYER_SHELL
-    if (layer_surface != NULL) {
-        zwlr_layer_surface_v1_destroy(layer_surface);
-        layer_surface = NULL;
-    }
-#endif
-    if (shell_surface != NULL) {
-        wl_shell_surface_destroy(shell_surface);
-        shell_surface = NULL;
-    }
-#ifdef HAVE_XDG_SHELL
-    if (xdg_toplevel != NULL) {
-        xdg_toplevel_destroy(xdg_toplevel);
-        xdg_toplevel = NULL;
-    }
-    if (xdg_surface != NULL) {
-        xdg_surface_destroy(xdg_surface);
-        xdg_surface = NULL;
-    }
-#endif
+    shell_surface_destroy(&shell_surface);
+    memset(&shell_surface, 0, sizeof(shell_surface));
     if (surface != NULL) {
         wl_surface_destroy(surface);
         surface = NULL;

@@ -97,6 +97,8 @@ boilerplate = static_library(
     'wl-clipboard-boilerplate',
     [
         'boilerplate.c',
+        'includes/selection-protocols.h',
+        'includes/shell-protocols.h',
         'util/string.h',
         'util/string.c',
         'util/files.h',
@@ -106,7 +108,9 @@ boilerplate = static_library(
         'types/source.h',
         'types/source.c',
         'types/offer.h',
-        'types/offer.c'
+        'types/offer.c',
+        'types/shell-surface.h',
+        'types/shell-surface.c'
     ],
     dependencies: wayland,
     link_with: protocol_deps

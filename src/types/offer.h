@@ -19,7 +19,7 @@
 #ifndef TYPES_SOURCE_H
 #define TYPES_SOURCE_H
 
-#include "selection-protocols.h"
+#include "includes/selection-protocols.h"
 
 struct offer {
     /* These fields are filled in by whoever creates this offer */
