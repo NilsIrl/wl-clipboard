@@ -125,7 +125,7 @@ void init_xdg_surface(struct shell_surface *self) {
     self->do_destroy = destroy_xdg_surface;
 }
 
-#endif
+#endif /* HAVE_XDG_SHELL */
 
 
 /* wlr-layer-shell implementation */
@@ -168,5 +168,5 @@ void init_zwlr_layer_surface_v1(struct shell_surface *self) {
     self->do_destroy = destroy_zwlr_layer_surface_v1;
 }
 
-#endif
+#endif /* HAVE_WLR_LAYER_SHELL */
 

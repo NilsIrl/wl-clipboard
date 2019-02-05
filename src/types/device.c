@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "types/device.h"
 #include "types/offer.h"
 #include "types/source.h"

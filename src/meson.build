@@ -112,7 +112,9 @@ boilerplate = static_library(
         'types/device.h',
         'types/device.c',
         'types/shell-surface.h',
-        'types/shell-surface.c'
+        'types/shell-surface.c',
+        'types/shell.h',
+        'types/shell.c'
     ],
     dependencies: wayland,
     link_with: protocol_deps
