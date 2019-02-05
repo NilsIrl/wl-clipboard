@@ -40,6 +40,10 @@
 #include "includes/selection-protocols.h"
 #include "includes/shell-protocols.h"
 
+#include "types/shell-manager.h"
+
+struct shell_manager shell_manager;
+
 struct wl_display *display;
 struct wl_data_device_manager *data_device_manager;
 struct wl_seat *seat;
@@ -47,15 +51,6 @@ struct wl_compositor *compositor;
 struct wl_shm *shm;
 struct wl_shell *shell;
 struct wl_surface *surface;
-
-#ifdef HAVE_XDG_SHELL
-struct xdg_wm_base *xdg_wm_base;
-#endif
-
-#ifdef HAVE_WLR_LAYER_SHELL
-struct zwlr_layer_shell_v1 *layer_shell;
-#endif
-
 struct wl_data_device *data_device;
 
 #ifdef HAVE_GTK_PRIMARY_SELECTION

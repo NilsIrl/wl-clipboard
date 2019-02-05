@@ -57,6 +57,26 @@ struct shell *shell_manager_find_shell(struct shell_manager *self) {
     bail("Missing a shell implementation");
 }
 
+int shell_manager_has_shell(struct shell_manager *self) {
+    if (self->wl_shell != NULL) {
+        return 1;
+    }
+
+#ifdef HAVE_WLR_LAYER_SHELL
+    if (self->zwlr_layer_shell_v1 != NULL) {
+        return 1;
+    }
+#endif
+
+#ifdef HAVE_XDG_SHELL
+    if (self->xdg_wm_base != NULL) {
+        return 1;
+    }
+#endif
+
+    return 0;
+}
+
 void shell_manager_add_wl_shell(
     struct shell_manager *self,
     struct wl_shell *wl_shell

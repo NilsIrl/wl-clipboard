@@ -58,31 +58,34 @@ void registry_global_handler
             1
         );
     } else if (strcmp(interface, "wl_shell") == 0) {
-        shell = wl_registry_bind(
+        struct wl_shell *wl_shell = wl_registry_bind(
             registry,
             name,
             &wl_shell_interface,
             1
         );
+        shell_manager_add_wl_shell(&shell_manager, wl_shell);
     }
 #ifdef HAVE_XDG_SHELL
     else if (strcmp(interface, "xdg_wm_base") == 0) {
-        xdg_wm_base = wl_registry_bind(
+        struct xdg_wm_base *xdg_wm_base = wl_registry_bind(
             registry,
             name,
             &xdg_wm_base_interface,
             1
         );
+        shell_manager_add_xdg_shell(&shell_manager, xdg_wm_base);
     }
 #endif
 #ifdef HAVE_WLR_LAYER_SHELL
     else if (strcmp(interface, "zwlr_layer_shell_v1") == 0) {
-        layer_shell = wl_registry_bind(
+        struct zwlr_layer_shell_v1 *layer_shell = wl_registry_bind(
             registry,
             name,
             &zwlr_layer_shell_v1_interface,
             1
         );
+        shell_manager_add_zwlr_layer_shell_v1(&shell_manager, layer_shell);
     }
 #endif
 #ifdef HAVE_GTK_PRIMARY_SELECTION
@@ -286,23 +289,6 @@ data_control_manager_listener = {
 
 #endif
 
-#ifdef HAVE_XDG_SHELL
-
-static void xdg_wm_base_ping_handler
-(
-    void *data,
-    struct xdg_wm_base *xdg_wm_base,
-    uint32_t serial
-) {
-    xdg_wm_base_pong(xdg_wm_base, serial);
-}
-
-static const struct xdg_wm_base_listener xdg_wm_base_listener = {
-    .ping = xdg_wm_base_ping_handler
-};
-
-#endif
-
 void init_wayland_globals() {
     display = wl_display_connect(NULL);
     if (display == NULL) {
@@ -312,6 +298,8 @@ void init_wayland_globals() {
     struct wl_registry *registry = wl_display_get_registry(display);
     wl_registry_add_listener(registry, &registry_listener, NULL);
 
+    init_shell_manager(&shell_manager);
+
     // wait for the "initial" set of globals to appear
     wl_display_roundtrip(display);
 
@@ -319,14 +307,7 @@ void init_wayland_globals() {
         data_device_manager == NULL ||
         compositor == NULL ||
         shm == NULL ||
-        (shell == NULL
-#ifdef HAVE_XDG_SHELL
-         && xdg_wm_base == NULL
-#endif
-#ifdef HAVE_WLR_LAYER_SHELL
-         && layer_shell == NULL
-#endif
-        )
+        !shell_manager_has_shell(&shell_manager)
     ) {
         bail("Missing a required global object");
     }
@@ -410,7 +391,7 @@ void ensure_has_primary_selection() {
 #endif
 }
 
-static struct shell_surface shell_surface;
+static struct shell_surface *shell_surface;
 
 void popup_tiny_invisible_surface() {
     // HACK:
@@ -428,49 +409,8 @@ void popup_tiny_invisible_surface() {
 
     surface = wl_compositor_create_surface(compositor);
 
-#ifdef HAVE_WLR_LAYER_SHELL
-    if (layer_shell != NULL) {
-        // use wlr-layer-shell
-        struct zwlr_layer_surface_v1 *layer_surface =
-            zwlr_layer_shell_v1_get_layer_surface(
-                layer_shell,
-                surface,
-                NULL,  // output
-                ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
-                "wl-clipboard"  // namespace
-            );
-        shell_surface.proxy = (struct wl_proxy *) layer_surface;
-        init_zwlr_layer_surface_v1(&shell_surface);
-
-        // signal that the surface is ready to be configured
-        wl_surface_commit(surface);
-        // wait for the surface to be configured
-        wl_display_roundtrip(display);
-    } else
-#endif
-    if (shell != NULL) {
-        // use wl_shell
-        struct wl_shell_surface *wl_shell_surface =
-            wl_shell_get_shell_surface(shell, surface);
-        shell_surface.proxy = (struct wl_proxy *) wl_shell_surface;
-        init_wl_shell_surface(&shell_surface);
-    } else {
-#ifdef HAVE_XDG_SHELL
-        // use xdg-shell
-        xdg_wm_base_add_listener(xdg_wm_base, &xdg_wm_base_listener, NULL);
-        struct xdg_surface *xdg_surface =
-            xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
-        shell_surface.proxy = (struct wl_proxy *) xdg_surface;
-        init_xdg_surface(&shell_surface);
-
-        // signal that the surface is ready to be configured
-        wl_surface_commit(surface);
-        // wait for the surface to be configured
-        wl_display_roundtrip(display);
-#else
-        bail("Unreachable: HAVE_XDG_SHELL undefined and no wl_shell");
-#endif
-    }
+    struct shell *shell = shell_manager_find_shell(&shell_manager);
+    shell_surface = shell_create_shell_surface (shell, surface);
 
     if (surface == NULL) {
         // it's possible that we've been given focus without us
@@ -503,8 +443,8 @@ void popup_tiny_invisible_surface() {
 }
 
 void destroy_popup_surface() {
-    shell_surface_destroy(&shell_surface);
-    memset(&shell_surface, 0, sizeof(shell_surface));
+    shell_surface_destroy(shell_surface);
+    memset(shell_surface, 0, sizeof(struct shell_surface));
     if (surface != NULL) {
         wl_surface_destroy(surface);
         surface = NULL;

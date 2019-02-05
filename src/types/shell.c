@@ -133,7 +133,7 @@ static struct shell_surface *zwlr_layer_shell_v1_create_shell_surfacce(
     return shell_surface;
 }
 
-void init_init_zwlr_layer_shell_v1(struct shell *self) {
+void init_zwlr_layer_shell_v1(struct shell *self) {
     self->do_create_shell_surface = zwlr_layer_shell_v1_create_shell_surfacce;
 }
 

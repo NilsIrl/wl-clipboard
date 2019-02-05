@@ -38,6 +38,8 @@ struct shell_manager {
 
 void init_shell_manager(struct shell_manager *self);
 
+int shell_manager_has_shell(struct shell_manager *self);
+
 struct shell *shell_manager_find_shell(struct shell_manager *self);
 
 void shell_manager_add_wl_shell(
