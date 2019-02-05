@@ -113,6 +113,8 @@ boilerplate = static_library(
         'types/device.c',
         'types/shell-surface.h',
         'types/shell-surface.c',
+        'types/shell-manager.h',
+        'types/shell-manager.c',
         'types/shell.h',
         'types/shell.c'
     ],

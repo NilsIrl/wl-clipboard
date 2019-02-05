@@ -19,6 +19,8 @@
 #ifndef UTIL_MISC_H
 #define UTIL_MISC_H
 
+#include <stdio.h>
+
 #define bail(message) do { fprintf(stderr, message "\n"); exit(1); } while (0)
 
 void print_version_info(void);
