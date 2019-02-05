@@ -16,37 +16,54 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TYPES_OFFER_H
-#define TYPES_OFFER_H
+#ifndef TYPES_DEVICE_H
+#define TYPES_DEVICE_H
 
 #include "includes/selection-protocols.h"
 
-struct offer {
+#include "types/source.h"
+#include "types/offer.h"
+
+struct device {
     /* These fields are filled in by whoever creates this offer */
-    void (*offered_type_callback)(const char *mime_type);
+    void (*new_offer_callback)(struct offer *offer);
+    void (*selection_callback)(struct offer *offer, int primary);
 
     struct wl_proxy *proxy;
 
-    /* This field is initialized by the implementation */
-    void (*do_receive)(struct wl_proxy *proxy, const char *mime_type, int fd);
+    /* These fields are initialized by the implementation */
+    int (*supports_selection)(int primary);
+    int needs_popup_surface;
+    void (*do_set_selection)(
+        struct device *self,
+        struct source *source,
+        uint32_t serial,
+        int primary
+    );
 };
 
-void offer_receive(struct offer *self, const char *mime_type, int fd);
+int device_supports_selection(struct device *self, int primary);
+
+void device_set_selection(
+    struct device *self,
+    struct source *source,
+    int primary
+);
 
 /* Initializers */
 
-void init_wl_data_offer(struct offer *self);
+void init_wl_data_device(struct device *self);
 
 #ifdef HAVE_GTK_PRIMARY_SELECTION
-void init_gtk_primary_selection_offer(struct offer *self);
+void init_gtk_primary_selection_device(struct device *self);
 #endif
 
 #ifdef HAVE_WP_PRIMARY_SELECTION
-void init_zwp_primary_selection_offer_v1(struct offer *self);
+void init_zwp_primary_selection_device_v1(struct device *self);
 #endif
 
 #ifdef HAVE_WLR_DATA_CONTROL
-void init_zwlr_data_control_offer_v1(struct offer *self);
+void init_zwlr_data_control_device_v1(struct device *self);
 #endif
 
-#endif /* TYPES_OFFER_H */
+#endif /* TYPES_DEVICE_H */
